@@ -299,6 +299,10 @@ def get_args():
                         help=('Disables PokeStops from the map (including ' +
                               'parsing them into local db).'),
                         action='store_true', default=False)
+    parser.add_argument('-nwc', '--no-weather-cells',
+                        help=('Disables weather for cells from the map' +
+                              ' (including parsing them into local db).'),
+                        action='store_true', default=False)
     parser.add_argument('-ss', '--spawnpoint-scanning',
                         help=('Use spawnpoint scanning (instead of hex ' +
                               'grid). Scans in a circle based on step_limit ' +
@@ -408,7 +412,7 @@ def get_args():
         help=('Defines the type of messages to send to webhooks.'),
         choices=[
             'pokemon', 'gym', 'raid', 'egg', 'tth', 'gym-info',
-            'pokestop', 'lure', 'captcha'
+            'pokestop', 'lure', 'captcha', 'weather'
         ],
         action='append',
         default=[])
@@ -832,6 +836,13 @@ def cellid(loc):
 # Return approximate distance in meters.
 def distance(pos1, pos2):
     return haversine((tuple(pos1))[0:2], (tuple(pos2))[0:2])
+
+
+def degrees_to_cardinal(d):
+    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+    ix = int((d + 11.25)/22.5 - 0.02)
+    return dirs[ix % 16]
 
 
 # Return True if distance between two locs is less than distance in meters.
