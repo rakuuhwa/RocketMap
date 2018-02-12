@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 args = get_args()
 flaskDb = FlaskDB()
 cache = TTLCache(maxsize=100, ttl=60 * 5)
-db_schema_version = 25
+db_schema_version = 26
 
 
 class MyRetryDB(RetryOperationalError, PooledMySQLDatabase):
@@ -123,6 +123,7 @@ class Pokemon(LatLongModel):
     gender = SmallIntegerField(null=True)
     costume = SmallIntegerField(null=True)
     form = SmallIntegerField(null=True)
+    weather_boosted_condition = SmallIntegerField(null=True)
     last_modified = DateTimeField(
         null=True, index=True, default=datetime.utcnow)
 
@@ -2012,8 +2013,15 @@ def parse_map(args, map_dict, scan_coords, scan_location, db_update_queue,
                 'weight': None,
                 'gender': p.pokemon_data.pokemon_display.gender,
                 'costume': p.pokemon_data.pokemon_display.costume,
-                'form': p.pokemon_data.pokemon_display.form
+                'form': p.pokemon_data.pokemon_display.form,
+                'weather_boosted_condition': None
+
             }
+
+            # Check Weather
+            weather = p.pokemon_data.pokemon_display.weather_boosted_condition
+            if weather:
+                pokemon[p.encounter_id]['weather_boosted_condition'] = weather
 
             # We need to check if exist and is not false due to a request error
             if pokemon_info:
@@ -3130,7 +3138,8 @@ def database_migrate(db, old_ver):
                                 DateTimeField(
                                     null=False, default=datetime.utcnow())),
             migrator.add_column('gym', 'total_cp',
-                                SmallIntegerField(null=False, default=0)))
+                                SmallIntegerField(null=False, default=0))
+        )
 
     if old_ver < 21:
         # First rename all tables being modified.
@@ -3225,9 +3234,8 @@ def database_migrate(db, old_ver):
 
     if old_ver < 24:
         migrate(
-            migrator.drop_index('pokemon', 'pokemon_disappear_time'),
-            migrator.add_index('pokemon',
-                               ('disappear_time', 'pokemon_id'), False)
+            migrator.add_column('pokemon', 'weather_boosted_condition',
+                                SmallIntegerField(null=True))
         )
 
     if old_ver < 25:
@@ -3240,7 +3248,16 @@ def database_migrate(db, old_ver):
                                 SmallIntegerField(null=True)),
             # Add `costume` column to `gympokemon`
             migrator.add_column('gympokemon', 'costume',
-                                SmallIntegerField(null=True)))
+                                SmallIntegerField(null=True))
+	)
+
+    if old_ver < 26:
+        migrate(
+            migrator.drop_index('pokemon', 'pokemon_disappear_time'),
+            migrator.add_index('pokemon',
+                               ('disappear_time', 'pokemon_id'), False)
+        )
+
 
     # Always log that we're done.
     log.info('Schema upgrade complete.')
